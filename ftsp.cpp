@@ -14,8 +14,9 @@ using namespace std;
 
 
 
-poly symmetrize(poly p) {
-  poly out;
+template<typename R>
+poly<R> symmetrize(poly<R> p) {
+  poly<R> out;
   for(auto it: p) {
     for(permutation p : Sn(NVARS)) {
       out = out.set(p.act_or_fix(it.first), it.second);
@@ -24,25 +25,29 @@ poly symmetrize(poly p) {
   return out;
 }
 
-poly make_elementary_from_exponent(exponent e) {
-  poly out(1);
+template<typename R>
+poly<R> make_elementary_from_exponent(exponent e) {
+  poly<R> out(1);
   for(int i = 0; i < NVARS; ++i) {
-    out = out * pow(elementary_symmetric(i+1), e[i]);
+    out = out * pow(elementary_symmetric<R>(i+1), e[i]);
   }
   return out;
 };
-poly make_elementary_from_poly(poly p) {
-  poly out;
+
+template<typename R>
+poly<R> make_elementary_from_poly(poly<R> p) {
+  poly<R> out;
   for(auto it : p) {
-    out = out + it.second * make_elementary_from_exponent(it.first);
+    out = out + it.second * make_elementary_from_exponent<R>(it.first);
   }
   return out;
 }
 
 
 // decompose a given symmetric polynomial into a polynomial of elementary symmetric polynomials.
-poly decompose_elementary(poly p) {
-  if (p.zero()) { return poly(); }
+template<typename R>
+poly<R> decompose_elementary(poly<R> p) {
+  if (p.zero()) { return poly<R>(); }
   exponent emax = p.lexmax();
   const int cmax = p[emax];
 
@@ -58,7 +63,7 @@ poly decompose_elementary(poly p) {
     es = es.set(i, emax[i] - prev); prev = emax[i];
   }
 
-  poly killer = cmax * make_elementary_from_exponent(es);
+  poly killer = cmax * make_elementary_from_exponent<R>(es);
   assert(killer.lexmax() == p.lexmax());
   p = p - killer;
   return cmax * es + decompose_elementary(p);
@@ -85,12 +90,12 @@ int main() {
   for(int i = 0; i <= NVARS; ++i) {
     set<permutation> si = Sn(i);
     assert(si.size() == factorial(i));
-    cout << "Elementary symmetric polynomial on " << i << " vars:" << elementary_symmetric(i).str() << "\n";
+    cout << "Elementary symmetric polynomial on " << i << " vars:" << elementary_symmetric<int>(i).str() << "\n";
   }
 
 
   for(int i = 0; i < 100; ++i) {
-    poly p = randpoly();
+    poly p = randpoly<int>();
     p = symmetrize(p);
     cout << "symmetric polynomial: " << p.str() << "\n";
     poly out = decompose_elementary(p);

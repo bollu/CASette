@@ -247,11 +247,12 @@ bool operator == (const exponent &e, const exponent &f) {
   return true;
 }
 
+template<typename R>
 struct monomial {
-  const int coeff;
+  const R coeff;
   const exponent exp;
 
-  monomial(int coeff, exponent exp) : coeff(coeff), exp(exp) {};
+  monomial(R coeff, exponent exp) : coeff(coeff), exp(exp) {};
 
   string str() const {
     if (coeff == 0) { return "0"; }
@@ -261,6 +262,7 @@ struct monomial {
   }
 };
 
+template<typename R>
 struct poly {
   // create monomial
   poly() {}
@@ -273,18 +275,18 @@ struct poly {
     }
   }
 
-  poly(monomial m) {
+  poly(monomial<R> m) {
     if (m.coeff != 0) {
       coeffs[m.exp] = m.coeff;
     }
   }
 
-  poly(int c, exponent e) {
+  poly(R c, exponent e) {
     if (c != 0) {
       coeffs[e] = c;
     }
   }
-  poly set(exponent e, int v) const {
+  poly set(exponent e, R v) const {
     poly out = *this;
     if (v == 0) {
       out.coeffs.erase(e);
@@ -294,7 +296,7 @@ struct poly {
     return out;
   }
 
-  poly incr(exponent e, int deltav) const {
+  poly incr(exponent e, R deltav) const {
     return set(e, get(e) + deltav);
   }
 
@@ -304,7 +306,7 @@ struct poly {
     else { return {it->first}; }
   };
 
-  monomial leading_term() {
+  monomial<R> leading_term() {
     exponent largest = lexmax();
     return monomial(this->get(largest), largest);
   }
@@ -314,20 +316,20 @@ struct poly {
     return coeffs.size() == 0;
   };
 
-  int get(exponent e) const {
+  R get(exponent e) const {
     auto it = coeffs.find(e);
     if (it == coeffs.end()) { return 0; }
     return it->second;
   }
 
 
-  int operator [](exponent e) const {
+  R operator [](exponent e) const {
     return get(e);
   }
 
   
-  using coeffsT = map<exponent, int>;
-  using const_iterator = coeffsT::const_iterator;
+  using coeffsT = map<exponent, R>;
+  using const_iterator = typename coeffsT::const_iterator;
 
   const_iterator begin() const { return coeffs.begin(); }
   const_iterator end() const { return coeffs.end(); }
@@ -338,10 +340,11 @@ string str () const {
   if (zero()) { return "0"; }
   for(auto it : this->coeffs) {
     assert(it.second != 0);
-    if (!first) { 
-      out += ((it.second > 0) ? " + " : " - ");
-    } 
-    out += std::to_string(abs(it.second)); out += it.first.str();
+    // if (!first) { 
+    //   out += ((it.second > 0) ? " + " : " - ");
+    // } 
+    // out += std::to_string(abs(it.second)); out += it.first.str();
+    out += std::to_string(it.second); out += it.first.str();
     first = false;
   }
   return out;
@@ -351,23 +354,23 @@ string str () const {
   coeffsT coeffs;
 };
 
-// operator (poly)(const monomial &m) {
-// }
 
 
 
 // find lexicographic max term
 
-poly operator +(const poly&p, const poly &q) {
-  poly out = p;
+template<typename R>
+poly<R> operator +(const poly<R> &p, const poly<R> &q) {
+  poly<R> out = p;
   for(auto it : q) {
     out = out.incr(it.first, it.second);
   }
   return out;
 };
 
-poly operator -(const poly&p) {
-  poly out;
+template<typename R>
+poly<R> operator -(const poly<R> &p) {
+  poly<R> out;
   for(auto it : p) {
     out = out.set(it.first, -it.second);
   }
@@ -375,7 +378,8 @@ poly operator -(const poly&p) {
 };
 
 
-poly operator -(const poly&p, const poly &q) {
+template<typename R>
+poly<R> operator -(const poly<R> &p, const poly<R> &q) {
   poly out = p;
   for(auto it : q) {
     out = out.incr(it.first, -it.second);
@@ -383,25 +387,29 @@ poly operator -(const poly&p, const poly &q) {
   return out;
 };
 
-bool operator == (const poly &p, const poly &q) {
+template<typename R>
+bool operator == (const poly<R> &p, const poly<R> &q) {
   return (p - q).zero();
 }
 
 
-poly operator *(int c, const exponent &e) {
+template<typename R>
+poly<R> operator *(R c, const exponent &e) {
   return poly(c, e);
 }
 
-poly operator *(int c, const poly &p) {
-  poly out;
+template<typename R>
+poly<R> operator *(R c, const poly<R> &p) {
+  poly<R> out;
   for(auto it : p) {
       out = out.set(it.first, c * it.second);
   }
   return out;
 };
 
-poly operator *(const poly &p, const poly &q) {
-  poly out;
+template<typename R>
+poly<R> operator *(const poly<R> &p, const poly<R> &q) {
+  poly<R> out;
   for(auto it1 : p) {
     for(auto it2 : q) {
       out = out.incr(it1.first + it2.first, it1.second * it2.second);
@@ -412,8 +420,9 @@ poly operator *(const poly &p, const poly &q) {
 
 
 
-poly pow(const poly &p, int i) {
-  if (i == 0) { return poly(1); };
+template<typename R>
+poly<R> pow(const poly<R> &p, int i) {
+  if (i == 0) { return poly<R>(1); };
   if (i == 1) { return p; }
   poly half = pow(p, i/2);
   if (i % 2 == 0) {
@@ -425,12 +434,13 @@ poly pow(const poly &p, int i) {
 
 
 // create S_1, S_2, S_3, S_4, S_5
-poly elementary_symmetric(int n) {
+template<typename R>
+poly<R> elementary_symmetric(int n) {
   assert(n >= 0);
   assert(n <= NVARS);
   exponent monomial;
   for(int i = 0; i < n; ++i) { monomial = monomial.set(i, 1); }
-  poly out;
+  poly<R> out;
   // this is wasteful. Can enumerate this much better.
   for(permutation s : Sn(NVARS)) {
     out = out.set(s.act_or_fix(monomial), 1);
@@ -450,12 +460,13 @@ exponent randexponent() {
   return out;
 }
 
-poly randpoly() {
+template<typename R>
+poly<R> randpoly() {
   int nterms = 1 + rand() % 3;
-  poly out;
+  poly<R> out;
   for(int i = 0; i < nterms; ++i) {
     int coeff = (1 + (rand() % 4)) * (rand() % 2 ? 1 : -1);
-    out = out + coeff * randexponent(); 
+    out = out + R(coeff) * randexponent(); 
   }
   return out;
-};
+};                 
