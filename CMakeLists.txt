@@ -4,9 +4,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -fdiagnostics-color=always -fsanitize=address,undefined")
-
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fdiagnostics-color=always -O2")
 
-add_executable(sympoly main.cpp)
-install(TARGETS sympoly DESTINATION bin)
+add_executable(tableaux tableaux.cpp)
+add_executable(ftsp ftsp.cpp) 
+install(TARGETS tableaux ftsp DESTINATION bin)
 
