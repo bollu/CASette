@@ -35,12 +35,14 @@ public:
   }
 
   exponent(int var, int exp) {
+    for(int i = 0; i < NVARS; ++i) { es[i] = 0; }
     assert(var < NVARS); 
     assert(exp >= 0);
     es[var] = exp;
   }
 
   exponent(map<int, int> exps) {
+    for(int i = 0; i < NVARS; ++i) { es[i] = 0; }
     for(auto it: exps) {
       assert(it.first < NVARS);
       assert(it.second >= 0); 
@@ -79,21 +81,25 @@ public:
     assert(degree() <= MAX_DEGREE);
     return out;
   }
-};
 
-
-ostream &operator << (ostream &o, const exponent &e) {
+string str() const {
   bool first = true;
-  o << "[";
+  string out;
+  out +=  "[";
   for(int i = 0; i < NVARS; ++i) {
-    if (e[i] == 0) { continue; }
-    if (!first) { o << " ";  }
-    o << NAMES[i] << "^" << e[i];
+    if (es[i] == 0) { continue; }
+    if (!first) { out += " ";  }
+    out += NAMES[i];
+    out += "^";
+    out += std::to_string(es[i]);
     first = false; 
   }
-  o << "]";
-  return o;
+  out += "]";
+  return out;
 }
+
+};
+
 
 
 struct permutation {
@@ -157,6 +163,20 @@ public:
     }
     return out;
   }
+
+string str () const {
+  string out;
+  out += "[S";
+  out += std::to_string(n);
+  for(int i = 0; i < n; ++i) {
+    if (i == act(i)) { continue; };
+    out += ";"; out += std::to_string(i+1); out += "→"; out += std::to_string(act(i)+1);
+  }
+  out += "]";
+  return out;
+}
+
+
 };
 
 bool operator < (const permutation &p, const permutation &q) {
@@ -277,19 +297,26 @@ struct poly {
 
   const_iterator begin() const { return coeffs.begin(); }
   const_iterator end() const { return coeffs.end(); }
+
+string str () const {
+  string out;
+  bool first = true;
+  if (zero()) { return "0"; }
+  for(auto it : this->coeffs) {
+    assert(it.second != 0);
+    if (!first) { 
+      out += ((it.second > 0) ? " + " : " - ");
+    } 
+    out += std::to_string(abs(it.second)); out += it.first.str();
+    first = false;
+  }
+  return out;
+}
+
   private:
   coeffsT coeffs;
 };
 
-
-ostream &operator << (ostream &o, const permutation &p) {
-  o << "[S" << p.n;
-  for(int i = 0; i < p.n; ++i) {
-    if (i == p.act(i)) { continue; };
-    o << ";" << i+1 << "→" << p.act(i)+1;
-  }
-  return o << "]";
-}
 
 // find lexicographic max term
 
@@ -345,21 +372,6 @@ poly operator *(const poly &p, const poly &q) {
   return out;
 };
 
-ostream &operator << (ostream &o, const poly &p) {
-  bool first = true;
-  if (p.zero()) { o << "0"; return o; }
-  for(auto it : p) {
-    assert(it.second != 0);
-    if (!first) { 
-      o << ((it.second > 0) ? " + " : " - ");
-      o << abs(it.second) << it.first;
-    } else {
-      o << it.second << it.first;
-      first = false;
-    }
-  }
-  return o;
-}
 
 
 poly pow(const poly &p, int i) {
@@ -475,25 +487,25 @@ int main() {
     cout << "size of Sn(n=" << i << ") = " << si.size() << "\n";
     for(permutation p : si) {
       exponent xy({{0, 1}, {1, 1}});
-      cout << "\t" << p << " | " << xy << " → " << p.act_or_fix(xy) << "\n";
+      cout << "\t" << p.str() << " | " << xy.str() << " → " << p.act_or_fix(xy).str() << "\n";
     }
   }
 
   for(int i = 0; i <= NVARS; ++i) {
     set<permutation> si = Sn(i);
     assert(si.size() == factorial(i));
-    cout << "Elementary symmetric polynomial on " << i << " vars:" << elementary_symmetric(i) << "\n";
+    cout << "Elementary symmetric polynomial on " << i << " vars:" << elementary_symmetric(i).str() << "\n";
   }
 
 
   for(int i = 0; i < 100; ++i) {
     poly p = randpoly();
     p = symmetrize(p);
-    cout << "symmetric polynomial: " << p << "\n";
+    cout << "symmetric polynomial: " << p.str() << "\n";
     poly out = decompose_elementary(p);
-    cout << "\telementary decomposition: " << out  << "\n";
+    cout << "\telementary decomposition: " << out.str()  << "\n";
     poly p2 = make_elementary_from_poly(out);
-    cout << "\trecovered polynomial: " << p2 << "\n";
+    cout << "\trecovered polynomial: " << p2.str() << "\n";
     assert(p == p2);
   }
 
