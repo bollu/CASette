@@ -203,7 +203,7 @@ set<permutation> Sn(int n) {
 
 // lex ordering.
 bool operator < (const exponent &e, const exponent &f) {
-  if (e.degree() < f.degree()) { return true; }
+  if (e.degree() != f.degree()) { return e.degree() < f.degree(); }
   for(int i = 0; i < NVARS; ++i) {
     if (e[i] == f[i]) { continue; }
     assert(e[i] != f[i]);
