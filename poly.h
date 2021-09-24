@@ -82,6 +82,13 @@ public:
     return out;
   }
 
+  bool divides(const exponent &other) const {
+    for(int i = 0; i < NVARS; ++i) {
+      if (this->es[i] - other.es[i] < 0) { return false; }
+    } 
+    return true;
+  }
+
   exponent set(int i, int val) const {
     assert(i < NVARS);
     assert(val >= 0);
@@ -260,6 +267,15 @@ struct monomial {
       return std::to_string(coeff) + exp.str();
     }
   }
+
+  monomial<R> operator * (const monomial<R> &other) const {
+    return monomial(this->coeff * other.coeff, this->exp + other.exp);
+  }
+
+  // better be sure this division is legal!
+  monomial<R> operator / (const monomial<R> &other) const {
+    return monomial(this->coeff / other.coeff, *(this->exp - other.exp));
+  }
 };
 
 template<typename R>
@@ -340,11 +356,12 @@ string str () const {
   if (zero()) { return "0"; }
   for(auto it : this->coeffs) {
     assert(it.second != 0);
-    // if (!first) { 
-    //   out += ((it.second > 0) ? " + " : " - ");
-    // } 
-    // out += std::to_string(abs(it.second)); out += it.first.str();
-    out += std::to_string(it.second); out += it.first.str();
+    if (!first) { 
+      out += ((it.second > 0) ? " + " : " - ");
+    } 
+    out += std::to_string(abs(it.second)); out += it.first.str();
+    // using std::to_string;
+    // out += to_string(it.second); out += it.first.str();
     first = false;
   }
   return out;

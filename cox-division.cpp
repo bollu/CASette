@@ -1,5 +1,4 @@
-// fundamental theorem of symmetric polynomials: any symmetric polynomial can be written
-// as a function of the elementary symmetric polynomial
+// multivariate division from cox little oshea
 #include <iostream>
 #include <map>
 #include <assert.h>
@@ -11,9 +10,12 @@
 #include <poly.h>
 
 int gcd(int small, int large) {
-  if (small > large) { return gcd(large, small); }
-  if (small == 0) { return large; }
-  return gcd(large % small, small);
+  cout << "gcd " << small << " " << large << endl << "\n";
+  if (large < small) { return gcd(small, large); }
+  else {
+    if (small == 0) { return large; }
+    else { return gcd(large % small, small); }
+  }
 }
 
 struct QQ {
@@ -59,14 +61,22 @@ struct QQ {
   }
 };
 
-namespace std {
-std::string to_string(const QQ &q) {
+std::string to_string(QQ &q) {
   return q.str();
 }
+
+
+
+// return true if exponent e divicdes polynomial p.
+template<typename R>
+bool does_monomial_divide_poly(monomial<R> m, poly<R> p) {
+  for(auto it : p) {
+    optional<exponent> delta = it.first - m.exp;
+    if (!delta) { return false; }
+    if (it.second % m.coeff != 0) { return 0; }
+  }
+  return true;
 }
-
-
-
 
 // return quotient and remainder
 // 2.3: a divison algorithm for k[x1, ... xn]
@@ -80,13 +90,17 @@ pair<vector<poly<R>>, poly<R>> divide(poly<R> p, vector<poly<R>> rs) {
   while(!p.zero()) {
     bool divisionOccured = false;
     for(int i = 0; i < rs.size(); ++i) {
-      optional<exponent> q = p.leading_term().exp - rs[i].leading_term().exp;
-      if (!q) { continue; } 
-      else {
-        qs[i] = qs[i] + poly(p.leading_term().coeff / rs[i].leading_term().coeff, *q);
+      if (rs[i].zero()) { continue; }
+      if (does_monomial_divide_poly<R>(rs[i].leading_term(), p)) {
+        const poly delta = poly(p.leading_term() / rs[i].leading_term());
+        // cout << "δ: " << delta.str() << " | rs[i]: " << rs[i].str() << " | p: " << p.str() << "\n";
+        // getchar();
+        qs[i] = qs[i] + delta; 
+        p = p - delta * rs[i]; 
         divisionOccured = true;
       }
     }
+    // cout << "divide p: " << p.str() << " | division occured? " << divisionOccured << "\n";
     
     if (!divisionOccured) {
       rem = rem + poly(p.leading_term());
@@ -101,12 +115,21 @@ int main() {
 
 
   for(int i = 0; i < 100; ++i) {
-    poly p = randpoly<QQ>();
-    poly r1 = randpoly<QQ>();
-    poly r2 = randpoly<QQ>();
-    vector<poly<QQ>> qs;
-    poly<QQ> rem;
-    cout << "computing " << p.str() << " / [" << r1.str() << ", " << r2.str() << "]\n";
+    poly p = randpoly<int>();
+    poly r1 = randpoly<int>();
+    poly r2 = randpoly<int>();
+    vector<poly<int>> qs;
+    poly<int> rem;
     tie(qs, rem) = divide(p, {r1, r2});
+    poly<int> check = qs[0]  * r1 + qs[1] * r2 + rem;
+    // for(auto it : rem) {
+    //   assert(!r1.leading_term().divides(it.first));
+    // }
+
+    assert(check == p);
+    cout << "\n===\ncomputing:";
+    cout << "\n\t" << p.str() << " / <" << r1.str() << " |" << r2.str() << ">";
+    cout << "\n\t(" << qs[0].str() << ")*(" << r1.str() << ") + (" << qs[1].str() << ")*(" << r2.str() <<  ")" << 
+        " + " << rem.str() << " = " << check.str() << "\n";
   }
 };
