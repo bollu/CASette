@@ -13,9 +13,8 @@ using namespace std;
 
 static const int NVARS = 2; // number of variables X_i
 static const int MAX_DEGREE = 30; // total maximum degree of any exponent.
-// const char NAMES[NVARS+1] = "pqrst";
 const char NAMES[NVARS+1] = "pq";
-
+                                  
 
 int factorial(int n) {
   if (n <= 1) { return 1; }
@@ -319,6 +318,10 @@ poly operator -(const poly&p, const poly &q) {
   return out;
 };
 
+bool operator == (const poly &p, const poly &q) {
+  return (p - q).zero();
+}
+
 
 poly operator *(int c, const exponent &e) {
   return poly(c, e);
@@ -386,40 +389,6 @@ poly elementary_symmetric(int n) {
 
 };
 
-// decompose a given symmetric polynomial into a polynomial of elementary symmetric polynomials.
-poly decompose_elementary(poly p) {
-  cout << __FUNCTION__ << " p:" << p << "\n";
-  if (p.zero()) { return poly(); }
-  exponent emax = p.lexmax();
-  const int cmax = p[emax];
-  cout << __FUNCTION__ << " emax: " << emax << " | cmax:" << cmax << "\n";
-
-  exponent es; // we use the elementary symmetric polynomails σ[i]^(emax[i] - emax[i-1])
-  // x^a y^b = (x)^p (xy)^q
-  // [a b] = p [1, 0] + q [1, 1]
-  // p = a
-  // p + q = b
-  // subject to p, q >= 0
-  // choose q = b, p = a - b
-  int prev = 0;
-  for(int i = NVARS-1; i >= 0; i--) {
-    es = es.set(i, emax[i] - prev); prev = emax[i];
-  }
-  cout << __FUNCTION__ << " es: " << es << "\n"; 
-
-  poly killer(1);
-  for(int i = 0; i < NVARS; ++i) {
-    const poly scale = pow(elementary_symmetric(i+1), es[i]);
-    cout << "\t-" << killer << " * " << scale << " = " << killer * scale << "\n";
-    killer = killer * scale;
-  }
-  killer = cmax * killer;
-  cout << __FUNCTION__ << " killer: " << killer << "\n";
-  getchar();
-  assert(killer.lexmax() == p.lexmax());
-  p = p - killer;
-  return killer + decompose_elementary(p);
-};
 
 exponent randexponent() {
   exponent out;
@@ -452,6 +421,46 @@ poly symmetrize(poly p) {
   return out;
 }
 
+poly make_elementary_from_exponent(exponent e) {
+  poly out(1);
+  for(int i = 0; i < NVARS; ++i) {
+    out = out * pow(elementary_symmetric(i+1), e[i]);
+  }
+  return out;
+};
+poly make_elementary_from_poly(poly p) {
+  poly out;
+  for(auto it : p) {
+    out = out + it.second * make_elementary_from_exponent(it.first);
+  }
+  return out;
+}
+
+
+// decompose a given symmetric polynomial into a polynomial of elementary symmetric polynomials.
+poly decompose_elementary(poly p) {
+  if (p.zero()) { return poly(); }
+  exponent emax = p.lexmax();
+  const int cmax = p[emax];
+
+  exponent es; // we use the elementary symmetric polynomails σ[i]^(emax[i] - emax[i-1])
+  // x^a y^b = (x)^p (xy)^q
+  // [a b] = p [1, 0] + q [1, 1]
+  // p = a
+  // p + q = b
+  // subject to p, q >= 0
+  // choose q = b, p = a - b
+  int prev = 0;
+  for(int i = NVARS-1; i >= 0; i--) {
+    es = es.set(i, emax[i] - prev); prev = emax[i];
+  }
+
+  poly killer = cmax * make_elementary_from_exponent(es);
+  assert(killer.lexmax() == p.lexmax());
+  p = p - killer;
+  return cmax * es + decompose_elementary(p);
+};
+
 int main() {
   srand(42);
 
@@ -482,7 +491,10 @@ int main() {
     p = symmetrize(p);
     cout << "symmetric polynomial: " << p << "\n";
     poly out = decompose_elementary(p);
-    cout << "\n\telementary decomposition:" << out  << "\n";
+    cout << "\telementary decomposition: " << out  << "\n";
+    poly p2 = make_elementary_from_poly(out);
+    cout << "\trecovered polynomial: " << p2 << "\n";
+    assert(p == p2);
   }
 
 };
