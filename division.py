@@ -97,20 +97,25 @@ class Mono:
 
     # divide other by self
     def divide(self, other):
+        assert isinstance(self, Mono)
+        assert isinstance(other, Mono)
         d = other.coeff // self.coeff
         r = other.coeff % self.coeff
         exp = other.exp - self.exp
         return (Mono(d, exp), (r, exp))
 
     def __add__(self, other):
+        assert isinstance(self, Mono)
         assert isinstance(other, Mono)
         return Poly([self, other])
 
     def __sub__(self, other):
+        assert isinstance(self, Mono)
         assert isinstance(other, Mono)
         return Poly([self, -1*other])
 
     def __lt__(self, other):
+        assert isinstance(self, Mono)
         assert isinstance(other, Mono)
         return (self.exp, self.coeff) < (other.exp, other.coeff)
 
@@ -118,8 +123,6 @@ class Mono:
 
     def __repr__(self):
         return f"{self.coeff}{self.exp}"
-    def __sub__(self, other):
-        return Poly([self, -1 * other])
 
     # leading term of a monomial is itself
     def leading(self):
@@ -258,3 +261,4 @@ if __name__ == "__main__":
     check_division(6*p, [3*p])
     check_division(6*p, [4*p])
     check_division(6*p, [7*p])
+    check_division(2*p + 4*p*p*q + 8*p*p*p*r, [2*p, q, r])
