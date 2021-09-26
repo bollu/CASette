@@ -1,3 +1,5 @@
+.hypothesis/
+__pycache__/
 .cache/
 build/
 *.sublime-*

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 from fractions import Fraction
-import pudb
+from hypothesis import given, example
+from hypothesis.strategies import text, composite, integers, lists
+
 
 NVARS = 3
 NAMES = "pqr"
@@ -223,6 +225,7 @@ def does_mono_divide_poly(mono_divisor, p):
 
 # p = qs * ks + r. Returns (ks, r)
 def division(p, qs):
+    assert len(qs) > 0
     if isinstance(p, Mono):
         p = Poly(p)
     for i in range(len(qs)):
@@ -236,11 +239,14 @@ def division(p, qs):
         divided = False
         for i in range(len(qs)):
             if does_mono_divide_poly(qs[i].leading(), p):
+                if qs[i].leading() == Mono.zero(): continue
                 div, rem = qs[i].leading().divide(p.leading())
                 assert div != Mono.zero()
                 p = p - div * qs[i]
                 ks[i] += div
                 divided = True
+                
+                if p == 0: break
         if not divided:
             r = r + p.leading()
             p = p - p.leading()
@@ -255,10 +261,41 @@ def check_division(top, bots):
     print(f"\n---\n{top} / {bots}\n= {ks} * {bots} + {r}\n=cert: {cert}")
     assert cert == top
 
+@composite
+def expvecs_nonneg(draw):
+    elements=integers(0, 4)
+    xs = draw(lists(elements, min_size=NVARS, max_size=NVARS))
+    return ExpVec(xs)
+
+@composite
+def monomials(draw):
+    exp = draw(expvecs_nonneg())
+    coeff = draw(integers(-10, 10))
+    return Mono(coeff, exp)
+
+@composite
+def polynomials(draw):
+    nterms = draw(integers(0, 5))
+    out = Poly.zero()
+    for i in range(nterms):
+        out = out + draw(monomials())
+    return out
+
+
+# @example(2*p + 4*p*p*q + 8*p*p*p*r, [2*p, q, r])
+@given(top=polynomials(), bots=lists(polynomials(), min_size=1))
+def test_division_certificate(top, bots):
+    (ks, r) = division(top, bots)
+    cert = r # certificate
+    for i in range(len(bots)):
+        cert = cert + ks[i] * bots[i]
+    assert cert == top
+
 if __name__ == "__main__":
-    check_division(p + q + r, [2*p, q])
-    check_division(6*p, [2*p])
-    check_division(6*p, [3*p])
-    check_division(6*p, [4*p])
-    check_division(6*p, [7*p])
+    # check_division(p + q + r, [2*p, q])
+    # check_division(6*p, [2*p])
+    # check_division(6*p, [3*p])
+    # check_division(6*p, [4*p])
+    # check_division(6*p, [7*p])
     check_division(2*p + 4*p*p*q + 8*p*p*p*r, [2*p, q, r])
+
