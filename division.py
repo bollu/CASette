@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
+# run tests with:
+# $ pytest --hypothesis-show-statistics
 from fractions import Fraction
-from hypothesis import given, example
+from hypothesis import given, example, settings
 from hypothesis.strategies import text, composite, integers, lists
 
 
@@ -238,8 +240,8 @@ def division(p, qs):
     while p != 0:
         divided = False
         for i in range(len(qs)):
+            if qs[i].leading() == Mono.zero(): continue
             if does_mono_divide_poly(qs[i].leading(), p):
-                if qs[i].leading() == Mono.zero(): continue
                 div, rem = qs[i].leading().divide(p.leading())
                 assert div != Mono.zero()
                 p = p - div * qs[i]
@@ -292,10 +294,10 @@ def test_division_certificate(top, bots):
     assert cert == top
 
 if __name__ == "__main__":
-    # check_division(p + q + r, [2*p, q])
-    # check_division(6*p, [2*p])
-    # check_division(6*p, [3*p])
-    # check_division(6*p, [4*p])
-    # check_division(6*p, [7*p])
+    check_division(p + q + r, [2*p, q])
+    check_division(6*p, [2*p])
+    check_division(6*p, [3*p])
+    check_division(6*p, [4*p])
+    check_division(6*p, [7*p])
     check_division(2*p + 4*p*p*q + 8*p*p*p*r, [2*p, q, r])
 
