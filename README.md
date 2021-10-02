@@ -1,7 +1,15 @@
+# CASette: minimal Computer Algebra system algorithms
+
 - Bijective combinatorics: Chapter on Tableaux.
 - [SnoB: FFT for the symmetric group](http://people.cs.uchicago.edu/~risi/SnOB/index.html)
 - FTSP: Fundamental theorem of symmetric polynomials
+- Ideals, Varieties, Algorithms
+- [Serees: Permutation group algorithms](https://doc.lagout.org/science/0_Computer%20Science/2_Algorithms/Permutation%20Group%20Algorithms%20%5BSeress%202003-03-17%5D.pdf)
 
+
+
+
+#### Intuition for why symmetric polynomials are important
 
 - Any symmetric polynomial of the roots of $f(x)$ MUST BE expressible as a polynomial in the coefficients of the polynomial $f(x)$, since the
   coefficients of $f(x)$ are the elementary symmetric functions of the roots, and any symmetric function of the roots is expressible in terms
@@ -48,4 +56,3 @@
 - On the computation of resolvents and Galois groups
 - Galois for 21st century readers: https://www.ams.org/notices/201207/rtx120700912p.pdf
 - Galois Theory for Beginners: A Historical Perspective
-
