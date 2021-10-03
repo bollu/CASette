@@ -3,14 +3,27 @@
 # $ pytest --hypothesis-show-statistics
 from fractions import Fraction
 from hypothesis import given, example, settings
+from typing import List, Dict, Set
 from hypothesis.strategies import text, composite, integers, lists
 
 
 
 class Permutation:
     def __init__(self, mapping: Dict[int, int]):
+        assert Permutation.find_non_bijection_witness(mapping) is None
         self.mapping = mapping
 
+    @classmethod
+    def find_non_bijection_witness(self, mapping):
+        # if bijetion, return none. otherwise return x1, x2 in mapping such that mapping[x1] == mapping[x2]
+        # check injective, surjective is by definition
+        inverse_images = {}
+        for (x, y) in mapping.items():
+            if y in inverse_images:
+                return x, inverse_images[y]
+            else:
+                inverse_images[y] = x
+        return None
 
     def sn(self): # find largest number in domain/codomain
         n = 0
@@ -35,13 +48,20 @@ class Permutation:
 
 
     # (g.compose_left_of(h))(x) = g(h(x))
-    def compose_left_of(self, h):
+    def compose_left_of(g, h):
         domain = set()
         domain = domain.union(h.mapping.keys())
         domain = domain.union(g.mapping.keys())
 
         mapping = { x : g(h(x)) for x in domain}
         return Permutation(mapping)
+
+
+    def __eq__(self, other):
+        N = max(self.sn(), other.sn())
+        for i in range(N):
+            if self(i) != other(i): return False
+        return True
 
     # (g * h)(x) = g(h(x))
     def __mul__(self, other): 
@@ -68,19 +88,19 @@ class Permutation:
     __str__ = __repr__
 
     def cycles(self) -> Set[List[int]]:
-        cycles = set()
+        cycles = []
         seen = set()
-        for x in range(sn):
-            if seen(x): continue
+        for x in range(self.sn()):
+            if x in seen: continue
             cycle = [x]
-            seen.insert(x)
+            seen.add(x)
 
             xpow = self(x)
             while xpow != x:
                 cycle.append(xpow)
-                seen.insert(xpow)
+                seen.add(xpow)
                 xpow = self(xpow)
-            cycles.insert(cycle)
+            cycles.append(cycle)
         return cycles
 
 
@@ -107,7 +127,7 @@ class Permutation:
 # schrier_vector[c].inverse()[c] = p
 # This gives us the orbit. For if an element k ∈ n is not reachable, it will be listed as None.
 def schrier_vector(as_: List[Permutation], n: int, k: int) -> List[Permutation]:
-    vs = [None for _ in range(sn.n)]
+    vs = [None for _ in range(n)]
 
     vs[k] = Permutation.identity()
     changed = True
@@ -164,3 +184,39 @@ def sims_filter(as_: List[Permutation], n:int):
         for j in range(i+1, n):
             s.insert(table[i][j])
     return s
+
+@composite
+def permutations(draw, n: int):
+    # raw random
+    # Fishes Yates: https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
+    xs = { i : i for i in range(n) }
+
+    i = n-1 # from (n-1), down to zero.
+    while i >= 0:
+        j = draw(integers(0, i)) # j ∈ [0, i]
+        temp = xs[i]; xs[i] = xs[j]; xs[j] = temp; # swap
+        i -= 1
+    return Permutation(xs)
+
+
+@given(p=permutations(n=5))
+def test_permutation_group_inverse(p: Permutation):
+    assert (p * p.inverse()).is_identity()
+    assert (p.inverse() * p).is_identity()
+
+@given(p=permutations(n=5), q=permutations(n=5), r=permutations(n=5))
+def test_permutation_group_assoc(p: Permutation, q: Permutation, r: Permutation):
+    assert (p * (q * r)) == ((p * q) * r)
+
+@given(p=permutations(n=5))
+def test_permutation_group_id(p: Permutation):
+    assert (p * p.identity()) == p
+    assert p == p * p.identity()
+
+
+def main():
+    pass
+
+if __name__ == "__main__":
+    main()
+
