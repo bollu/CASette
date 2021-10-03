@@ -199,7 +199,7 @@ def sims_filter(as_: List[Permutation], n:int):
 
     for a in as_:
         while not a.is_identity():
-            (i, j) = least_nonfixed(p)
+            (i, j) = least_nonfixed(a, n)
             if table[i][j] is None:
                 table[i][j] = a
                 break
@@ -215,7 +215,7 @@ def sims_filter(as_: List[Permutation], n:int):
     for i in range(n):
         for j in range(i+1, n):
             if table[i][j] is None: continue
-            s.insert(table[i][j])
+            s.add(table[i][j])
     return s
 
 
@@ -427,6 +427,15 @@ def schrier_decomposition(gs: List[Permutation], n: int) -> Dict[int, Permutatio
         Ggens[k] = gs_new
         gs_prev = gs_new
     return Ggens
+
+# take many generators and make the set small
+@given(gs=lists(permutations(n=5), min_size=30, max_size=50))
+def test_sims_filter(gs: List[Permutation]):
+    N = 5
+    hs = sims_filter(gs, 5)
+    assert len(hs) <= len(gs)
+    assert len(hs) <= (N * (N - 1))//2
+    assert generate_from_generators(gs) == generate_from_generators(hs)
 
 @given(gs=lists(permutations(n=5), min_size=1, max_size=4))
 def test_schrier_decmposition(gs: List[Permutation]):
