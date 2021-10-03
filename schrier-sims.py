@@ -282,9 +282,14 @@ def stabilizer_coset_representatives_slow(gs: Set[Permutation], k: int, n:int) -
 # However, the weird part is that THAT's NOT ENOUGH.
 # Rather, we need the generators to be: < (gs * os).map(remove_defect) >
 # For whatever reason, we must take all pairs of gs, os!
-def generators_of_stabilizer(gs: List[Permutation], orb2rep: Dict[int, Permutation], k: int, n: int):
+def generators_of_stabilizer(gs: List[Permutation], k: int, n: int):
     purified = set()
+
+    # Create coset representatives
+    orb2rep = stabilizer_coset_representatives_slow(gs, k, n)
+
     candidates = [g * rep for g in gs for rep in orb2rep.values()]
+
 
     for h in candidates:
             o = h(k) # find where h sends k | o ∈ Orb(k)
@@ -385,10 +390,8 @@ def test_generators_of_stabilizer(ps: List[Permutation], k:int):
     H = generate_from_generators(ps) # exhaustive generate group
     Stab = set([h for h in H if h(k) == k]) # exhaustively create stabilizer
 
-    # Create coset representatives
-    orb2rep = stabilizer_coset_representatives_slow(ps, k, N)
 
-    stab_gens = generators_of_stabilizer(ps, orb2rep, k, N)
+    stab_gens = generators_of_stabilizer(ps, k, N)
     stab_generated = generate_from_generators(stab_gens)
 
     assert Stab == stab_generated
@@ -412,13 +415,13 @@ def test_generators_for_sn(n: int):
     assert len(G) == factorial(n+1) # [0..n]
 
 # compute the schrier decomposition of <as_> = A inside Sn
-# def schrier_decomposition(gs: List[Permutation], n: int) -> (List[Permutation], List[Permutation]):
-#     Ggens = [gs] # Gss[i]: List[int] = generators of G[i]. so G[0] = < gs > = < Ggens[0] > and so on.
-# 
-#     for k in range(n+1): # [0, n]
-#         gs_prev = Ggens[k]
-#         generators_of_stabilizer(gs_prev, 
-# 
+def schrier_decomposition(gs: List[Permutation], n: int) -> (List[Permutation], List[Permutation]):
+    Ggens = [gs] # Gss[i]: List[int] = generators of G[i]. so G[0] = < gs > = < Ggens[0] > and so on.
+
+    for k in range(n+1): # [0, n]
+        gs_prev = Ggens[k]
+        # generators_of_stabilizer(gs_prev, 
+
 
 
 def main():
