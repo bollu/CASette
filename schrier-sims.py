@@ -438,7 +438,7 @@ def test_sims_filter(gs: List[Permutation]):
     assert len(hs) <= (N * (N - 1))//2
     assert generate_from_generators(gs) == generate_from_generators(hs)
 
-@given(gs=lists(permutations(n=5), min_size=1, max_size=4))
+@given(gs=sets(permutations(n=5), min_size=1, max_size=7))
 def test_schrier_decmposition(gs: List[Permutation]):
     N = 6
 
@@ -455,6 +455,32 @@ def test_schrier_decmposition(gs: List[Permutation]):
         # check that this is equal to the result as told by schrier
         assert stab_brute == generate_from_generators(schrier[K])
         assert len(schrier[K]) <= (N * (N - 1)) // 2 # by sims filter.
+
+
+def compute_order(gs: List[Permutation], n: int):
+    schrier = schrier_decomposition(gs, n)
+    # let's compute |schrier[i]|/|schrier[i+1]|.
+    # Recall that schrier[i] ~= Stab(schrier[i-1], i)
+    # Recall that schrier[i+1] ~= Stab(schrier[i], i+1)
+    # Recall that |schrier[i+1]|/|Stab(schrier[i], i+1)| ~= Orb(schrier[i+1],i+1) 
+    total_size = 1
+    for i in range(-1, len(schrier)):
+        if i == n-1: break
+        hs = schrier[i]
+        # intuition: G0 has G1=Stab(G0, 1). Size of |G0|/|Stab(G0, 1)| ~= Orb(G0, 1).
+        # so Gi should act on (i+1)
+        vs = schrier_vector(hs, k=i+1, n=n)
+        orb_size = sum([1 for v in vs if v is not None])
+        print(f"orb size of {hs} is {orb_size}")
+        total_size *= orb_size
+    return total_size
+
+@given(gs=sets(permutations(n=5), min_size=1, max_size=7))
+def test_order(gs: Set[Permutation]):
+    N = 5
+    order_fast = compute_order(gs, N)
+    order_brute = len(generate_from_generators(gs))
+    assert order_fast == order_brute
 
 
 def main():
