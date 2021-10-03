@@ -283,17 +283,17 @@ def stabilizer_coset_representatives_slow(gs: Set[Permutation], k: int, n:int) -
 # Rather, we need the generators to be: < (gs * os).map(remove_defect) >
 # For whatever reason, we must take all pairs of gs, os!
 def generators_of_stabilizer(gs: List[Permutation], orb2rep: Dict[int, Permutation], k: int, n: int):
-    purified = []
-    for g in gs:
-        # TO THINK: why do we need BOTH gs and os? Why doesn't just gs suffice?
-        for o in orb2rep:
-            h = g * o
-            l = h(k) # find coset
-            hdefect = orb2rep[l] # find coset representative
-            # g = orep * gstab
-            # gstab := g * orep.inverse()
-            hstab = h * hdefect.inverse()
-            purified.append(hstab)
+    purified = set()
+    candidates = [g * rep for g in gs for rep in orb2rep.values()]
+
+    for h in candidates:
+            o = h(k) # find where h sends k | o ∈ Orb(k)
+            orep = orb2rep[o] # find coset representative corresponding to o
+            # orep is hdefect, since it tells us which coset h lies in.
+            # h = orep * h_k_stab
+            # h_k_stab := h * orep.inverse()
+            h_k_stab = orep.inverse() * h
+            purified.add(h_k_stab)
     return purified
 
 
@@ -379,9 +379,20 @@ def test_stabilizer_coset_reps_slow(ps: List[Permutation], k:int):
     assert H == union_of_cosets # check that group is equal to union of cosets of stabilizer.
 
 @given(ps=lists(permutations(n=5), min_size=1, max_size=4), k=integers(0, 4))
-def generators_of_stabilizer(ps: List[Permutation], k:int):
+def test_generators_of_stabilizer(ps: List[Permutation], k:int):
     N = 5
+
+    H = generate_from_generators(ps) # exhaustive generate group
+    Stab = set([h for h in H if h(k) == k]) # exhaustively create stabilizer
+
+    # Create coset representatives
     orb2rep = stabilizer_coset_representatives_slow(ps, k, N)
+
+    stab_gens = generators_of_stabilizer(ps, orb2rep, k, N)
+    stab_generated = generate_from_generators(stab_gens)
+
+    assert Stab == stab_generated
+
 
 
 def factorial(n: int):
