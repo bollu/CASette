@@ -25,8 +25,10 @@ class Permutation:
 
     @classmethod
     def from_cycles(cls, cycles):
+        assert isinstance(cycles, list)
         mapping = {}
         for cyc in cycles:
+            assert isinstance(cyc, list)
             l = len(cyc)
             for i in range(len(cyc)):
                 mapping[cyc[i]] = cyc[(i+1)%l]
@@ -373,6 +375,27 @@ def test_stabilizer_coset_reps_slow(ps: List[Permutation], k:int):
 
 
     assert H == union_of_cosets # check that group is equal to union of cosets of stabilizer.
+
+def factorial(n: int):
+    if n == 0: return 1
+    return n * factorial(n-1)
+
+def generators_for_sn(n: int):
+    if n == 0: return [Permutation.identity()]
+    else: 
+        n_cycle = Permutation.from_cycles([list(range(n+1))])
+        swap = Permutation.from_cycles([[0,1]])
+        return [swap, n_cycle]
+
+@given(n=integers(0, 4))
+def test_generators_for_sn(n: int):
+    G = set(generate_from_generators(generators_for_sn(n)))
+    assert len(G) == factorial(n+1) # [0..n]
+
+# compute the schrier decomposition of <as_> = A inside Sn
+def schrier_decomposition(as_: List[Permutation], n: int) -> (List[Permutation], List[Permutation]):
+    Gs = [] # Gs[i]: List[int] = generators for G[i]
+    As = [as_] # As[i] : List[int] = generators for A[i]
 
 def main():
     pass
