@@ -11,7 +11,44 @@ from hypothesis.strategies import text, composite, integers, lists
 class Permutation:
     def __init__(self, mapping: Dict[int, int]):
         assert Permutation.find_non_bijection_witness(mapping) is None
-        self.mapping = mapping
+        self.mapping = self.remove_redundancies_in_mapping(mapping)
+
+    def __hash__(self):
+        return hash(tuple(list(self.mapping.items())))
+
+    def __eq__(self, other):
+        nmax = max(self.sn(), other.sn())
+        for i in range(nmax):
+            if self(i) != other(i): return False
+        return True
+
+
+    @classmethod
+    def from_cycles(cls, cycles):
+        mapping = {}
+        for cyc in cycles:
+            l = len(cyc)
+            for i in range(len(cyc)):
+                mapping[cyc[i]] = cyc[(i+1)%l]
+        return Permutation(mapping)
+
+    # sort by lex ordering.
+    def __lt__(self, other):
+        nmax = max(self.sn(), other.sn())
+        for i in range(nmax):
+            if self(i) == other(i): continue
+            if self(i) < other(i): return True
+            if self(i) > other(i): return False
+        return False
+
+    @classmethod
+    def remove_redundancies_in_mapping(self, mapping):
+        out = {}
+        for x in mapping:
+            if mapping[x] == x:
+                continue
+            out[x] = mapping[x]
+        return out
 
     @classmethod
     def find_non_bijection_witness(self, mapping):
@@ -73,17 +110,9 @@ class Permutation:
         return True
 
     def __repr__(self):
-        out = ""
         cycs = self.cycles()
-        for cyc in cycs:
-            out +=  "("
-            first = True
-            for x in cyc:
-                if not first: out += " "
-                first = False
-                out += str(x)
-            out +=  ")"
-        return out
+        out = ", ".join(["[" + ", ".join(map(str, cyc)) + "]" for cyc in cycs])
+        return "perm:[" + out + "]";
 
     __str__ = __repr__
 
@@ -179,6 +208,45 @@ def sims_filter(as_: List[Permutation], n:int):
     return s
 
 
+# given generators, generate the full group
+def generate_from_generators(ps: List[Permutation]):
+    H = set(); H.add(Permutation.identity())
+    changed = True
+    while changed:
+        Hnew = set()
+        changed = False
+        for h in H:
+            for p in ps:
+                hnew = h * p
+                if hnew in H: continue
+                Hnew.add(hnew); changed = True
+
+        H = H.union(Hnew)
+    return H
+
+
+# returns a map of elements in the orbit of k to the permutation that sends them there.
+# see that there are coset representatives by orbit stabilizer.
+def compute_stabilizer_representatives_slow(gs: Set[Permutation], k: int, n:int) -> Dict[int, Permutation]:
+    gs = set()
+    gs.add(Permutation.identity())
+    orb2rep = {}
+
+    changed = True
+    while changed:
+        changed = False
+        # terrible, O(n^2). use some kind of tree search!
+        for g in gs:
+            for (s, h) in orb2rep: 
+                hnew = h * g
+                snew = hnew(s)
+                if snew in orb2rep: continue # have already seen
+                # have not seen. Add.
+                changed = True
+                orb2rep[snew] =hnew
+    return orb2rep
+
+
 # we have a group G = <gs>
 # We have k ∈ S, and we need to find hs ⊂ G such that <hs> = Stab(k).
 # We have partitioned G into cosets of Stab(k) via (o[0] Stab(k), ..., o[n] Stab(k)).
@@ -201,7 +269,23 @@ def sims_filter(as_: List[Permutation], n:int):
 # It is now plausible that: <gs> = G => < gs.map(remove_defect) > = Stab(k)
 # since  remove_defect forces elements to stabilize k,
 # and we apply this treatment to all of G(by modifying the generator). 
-def generators_of_stabilizer(gs: List[Permutation], os: List[Permutation] k: int, n: int):
+# 
+# However, the weird part is that THAT's NOT ENOUGH.
+# Rather, we need the generators to be: < (gs * os).map(remove_defect) >
+# For whatever reason, we must take all pairs of gs, os!
+def generators_of_stabilizer(gs: List[Permutation], os: Dict[int, Permutation], k: int, n: int):
+    purified = []
+    for g in gs:
+        # TO THINK: why do we need BOTH gs and os? Why doesn't just gs suffice?
+        for o in os.items():
+            h = g * o
+            l = h(k) # find coset
+            hdefect = os[l] # find coset representative
+            # g = orep * gstab
+            # gstab := g * orep.inverse()
+            hstab = h * hdefect.inverse()
+            purified.append(hstab)
+    return purified
 
 @composite
 def permutations(draw, n: int):
@@ -253,6 +337,21 @@ def test_schrier_vector(ps: List[Permutation], k:int):
                 assert p(k) != x
 
     assert vs[k].identity()
+
+@given(p=permutations(n=5))
+def test_permutation_cycle_create_decompose(p: Permutation):
+    assert p == Permutation.from_cycles(p.cycles())
+
+
+
+@given(ps=lists(permutations(n=5), min_size=1, max_size=4), k=integers(0, 4))
+def test_compute_stabilizer_reps_slow(ps: List[Permutation], k:int):
+    N = 5
+    H = generate_from_generators(ps)
+    stab_exhaustive = set([h for h in H if h(k) == k]) # exhaustively create stabilizer
+    stab_gens = compute_stabilizer_representatives_slow(ps, k, N)
+    stab_generated = generate_from_generators(stab_gens)
+    assert stab_exhaustive == stab_generated
 
 def main():
     pass
