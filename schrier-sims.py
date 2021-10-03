@@ -92,11 +92,9 @@ class Permutation:
         seen = set()
         for x in range(self.sn()):
             if x in seen: continue
-            cycle = [x]
-            seen.add(x)
-
-            xpow = self(x)
-            while xpow != x:
+            xpow = x
+            cycle = []
+            while xpow not in seen:
                 cycle.append(xpow)
                 seen.add(xpow)
                 xpow = self(xpow)
@@ -126,9 +124,9 @@ class Permutation:
 # maps a number `c` to the permutation that links its parent `p` to `c`. So we have:
 # schrier_vector[c].inverse()[c] = p
 # This gives us the orbit. For if an element k ∈ n is not reachable, it will be listed as None.
-def schrier_vector(as_: List[Permutation], n: int, k: int) -> List[Permutation]:
+def schrier_vector(as_: List[Permutation], k: int, n:int) -> List[Permutation]:
+    assert k < n
     vs = [None for _ in range(n)]
-
     vs[k] = Permutation.identity()
     changed = True
     while changed:
@@ -136,14 +134,9 @@ def schrier_vector(as_: List[Permutation], n: int, k: int) -> List[Permutation]:
         for i in range(n):
             if vs[i] is None: continue
             for a in as_:
-                if vs[a(i)] is None:
-                    changed = True
-                    vs[a(i)] = a
-
+                if vs[a(i)] is None: changed = True; vs[a(i)] = a
                 ainv = a.inverse()
-                if vs[ainv(i)] is None:
-                    changed = True
-                    vs[ainv(i)] = ainv
+                if vs[ainv(i)] is None: changed = True; vs[ainv(i)] = ainv
     return vs
 
 
@@ -213,6 +206,28 @@ def test_permutation_group_id(p: Permutation):
     assert (p * p.identity()) == p
     assert p == p * p.identity()
 
+
+@given(ps=lists(permutations(n=5), min_size=1, max_size=4), k=integers(0, 4))
+def test_schrier_vector(ps: List[Permutation], k:int):
+    N = 5
+    vs = schrier_vector(ps, k=k, n=N)
+    assert len(vs) == N
+
+    for x in range(N):
+        # element is reachable from `k`. backtract to reach `k`.
+        if vs[x]:
+            y = x
+            nsteps = 0
+            while y != k:
+                y = vs[y].inverse()(y) # NOTE: the fact that we need to invert this is SO FUGLY.
+                nsteps += 1
+                assert nsteps <= N  + 1
+        else:
+            # element is unreachable from `k`
+            for p in ps:
+                assert p(k) != x
+
+    assert vs[k].identity()
 
 def main():
     pass
