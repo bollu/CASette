@@ -1,6 +1,6 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -vS pytest -v  
 # run tests with:
-# $ pytest --hypothesis-show-statistics
+# $ pytest --hypothesis-show-statistics 
 from fractions import Fraction
 from hypothesis import given, example, settings
 from typing import List, Dict, Set
@@ -111,8 +111,7 @@ class Permutation:
 
     def __repr__(self):
         cycs = self.cycles()
-        out = ", ".join(["[" + ", ".join(map(str, cyc)) + "]" for cyc in cycs])
-        return "perm:[" + out + "]";
+        return f"Permutation({cycs})"
 
     __str__ = __repr__
 
@@ -127,10 +126,19 @@ class Permutation:
                 cycle.append(xpow)
                 seen.add(xpow)
                 xpow = self(xpow)
-            cycles.append(cycle)
+            if len(cycle) > 1:
+                cycles.append(cycle)
         return cycles
 
 
+
+# def make_permutation_group(n: int) -> set(Permutation):
+#     if n == 0: return { Permutation({ 0 : 0 }) }
+# 
+#     ps = make_permutation_group(n-1)
+# 
+#     # have 0..n position the n value can be sent to.
+#     for i in range(n+1):
 
 # Rubick's cube perspective: https://www.jaapsch.net/puzzles/schreier.htm
 
@@ -211,40 +219,39 @@ def sims_filter(as_: List[Permutation], n:int):
 # given generators, generate the full group
 def generate_from_generators(ps: List[Permutation]):
     H = set(); H.add(Permutation.identity())
-    changed = True
-    while changed:
+    while True:
         Hnew = set()
-        changed = False
         for h in H:
             for p in ps:
                 hnew = h * p
                 if hnew in H: continue
-                Hnew.add(hnew); changed = True
+                Hnew.add(hnew);
 
-        H = H.union(Hnew)
+        if not Hnew: return H
+        else: H = H.union(Hnew)
     return H
 
 
 # returns a map of elements in the orbit of k to the permutation that sends them there.
-# see that there are coset representatives by orbit stabilizer.
-def compute_stabilizer_representatives_slow(gs: Set[Permutation], k: int, n:int) -> Dict[int, Permutation]:
-    gs = set()
+# see that there are coset representatives by the orbit stabilizer theorem.
+def stabilizer_coset_representatives_slow(gs: Set[Permutation], k: int, n:int) -> Dict[int, Permutation]:
+    gs = set(gs)
     gs.add(Permutation.identity())
     orb2rep = {}
+    orb2rep = { k : Permutation.identity() }
 
-    changed = True
-    while changed:
-        changed = False
+    while True:
+        new_orb2rep = {}
         # terrible, O(n^2). use some kind of tree search!
         for g in gs:
-            for (s, h) in orb2rep: 
-                hnew = h * g
-                snew = hnew(s)
-                if snew in orb2rep: continue # have already seen
-                # have not seen. Add.
-                changed = True
-                orb2rep[snew] =hnew
-    return orb2rep
+            # rep es coset representative for orb ∈ Orbit(k)
+            for (orb, rep) in orb2rep.items(): 
+                repnew = g * rep; orbnew = repnew(k)
+                if orbnew in orb2rep: continue # have already seen
+                new_orb2rep[orbnew] = repnew
+        # no update
+        if not new_orb2rep: return orb2rep
+        orb2rep.update(new_orb2rep)
 
 
 # we have a group G = <gs>
@@ -345,13 +352,27 @@ def test_permutation_cycle_create_decompose(p: Permutation):
 
 
 @given(ps=lists(permutations(n=5), min_size=1, max_size=4), k=integers(0, 4))
-def test_compute_stabilizer_reps_slow(ps: List[Permutation], k:int):
+def test_stabilizer_coset_reps_slow(ps: List[Permutation], k:int):
     N = 5
-    H = generate_from_generators(ps)
-    stab_exhaustive = set([h for h in H if h(k) == k]) # exhaustively create stabilizer
-    stab_gens = compute_stabilizer_representatives_slow(ps, k, N)
-    stab_generated = generate_from_generators(stab_gens)
-    assert stab_exhaustive == stab_generated
+    H = generate_from_generators(ps) # exhaustive generate group
+    Stab = set([h for h in H if h(k) == k]) # exhaustively create stabilizer
+    orb2rep = stabilizer_coset_representatives_slow(ps, k, N)
+
+    rep2coset = {}
+    for rep in orb2rep.values():
+        rep2coset[rep] = set([rep * s for s in Stab]) # create coset
+
+    for rep1, coset1 in rep2coset.items():
+        for rep2, coset2 in rep2coset.items():
+            if rep1 == rep2: continue
+            assert(len(coset1.intersection(coset2)) == 0) # cosets have no intersection
+
+    union_of_cosets = set()
+    for rep, coset in rep2coset.items():
+        union_of_cosets.update(coset)
+
+
+    assert H == union_of_cosets # check that group is equal to union of cosets of stabilizer.
 
 def main():
     pass
