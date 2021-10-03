@@ -1,6 +1,7 @@
 #!/usr/bin/env -vS pytest -v  
 # run tests with:
 # $ pytest --hypothesis-show-statistics 
+from copy import deepcopy
 from fractions import Fraction
 from hypothesis import given, example, settings
 from typing import List, Dict, Set
@@ -415,13 +416,34 @@ def test_generators_for_sn(n: int):
     assert len(G) == factorial(n+1) # [0..n]
 
 # compute the schrier decomposition of <as_> = A inside Sn
-def schrier_decomposition(gs: List[Permutation], n: int) -> (List[Permutation], List[Permutation]):
-    Ggens = [gs] # Gss[i]: List[int] = generators of G[i]. so G[0] = < gs > = < Ggens[0] > and so on.
+def schrier_decomposition(gs: List[Permutation], n: int) -> Dict[int, Permutation]:
+    Ggens = {-1: gs} # Gss[i]: List[int] = generators of G[i]. so G[0] = < gs > = < Ggens[0] > and so on.
 
+    gs_prev = gs
+    # Ggens[k] is a subgroup of <gs> which stabilizes [0..k] pointwise
+    #   [so h(0) = 0, h(1) = 1, ... h(k) = k]
     for k in range(n+1): # [0, n]
-        gs_prev = Ggens[k]
-        # generators_of_stabilizer(gs_prev, 
+        gs_new = generators_of_stabilizer(gs_prev, k, n)
+        Ggens[k] = gs_new
+        gs_prev = gs_new
+    return Ggens
 
+@given(gs=lists(permutations(n=5), min_size=1, max_size=4))
+def test_schrier_decmposition(gs: List[Permutation]):
+    N = 6
+
+    schrier = schrier_decomposition(gs, N)
+    G = set(generate_from_generators(gs))
+
+    for K in range(N+1):
+        # compute stabilizer of [1..K] brute force
+        stab_brute = deepcopy(G)
+         # filter out everything in stab_brute that does not stabilize i ∈ [0, K]
+        for i in range(0, K+1): 
+            stab_brute = set(filter(lambda g: g(i) == i, stab_brute))
+
+        # check that this is equal to the result as told by schrier
+        assert stab_brute == generate_from_generators(schrier[K])
 
 
 def main():
