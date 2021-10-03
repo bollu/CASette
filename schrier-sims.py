@@ -5,7 +5,7 @@ from copy import deepcopy
 from fractions import Fraction
 from hypothesis import given, example, settings
 from typing import List, Dict, Set
-from hypothesis.strategies import text, composite, integers, lists
+from hypothesis.strategies import text, composite, integers, lists, sets
 
 
 
@@ -416,7 +416,7 @@ def test_generators_for_sn(n: int):
     assert len(G) == factorial(n+1) # [0..n]
 
 # compute the schrier decomposition of <as_> = A inside Sn
-def schrier_decomposition(gs: List[Permutation], n: int) -> Dict[int, Permutation]:
+def schrier_decomposition(gs: List[Permutation], n: int, use_sims_filter:bool = True) -> Dict[int, Permutation]:
     Ggens = {-1: gs} # Gss[i]: List[int] = generators of G[i]. so G[0] = < gs > = < Ggens[0] > and so on.
 
     gs_prev = gs
@@ -424,12 +424,13 @@ def schrier_decomposition(gs: List[Permutation], n: int) -> Dict[int, Permutatio
     #   [so h(0) = 0, h(1) = 1, ... h(k) = k]
     for k in range(n+1): # [0, n]
         gs_new = generators_of_stabilizer(gs_prev, k, n)
+        if use_sims_filter: gs_new = sims_filter(gs_new, n) # performance
         Ggens[k] = gs_new
         gs_prev = gs_new
     return Ggens
 
 # take many generators and make the set small
-@given(gs=lists(permutations(n=5), min_size=30, max_size=50))
+@given(gs=sets(permutations(n=5), min_size=30, max_size=50))
 def test_sims_filter(gs: List[Permutation]):
     N = 5
     hs = sims_filter(gs, 5)
@@ -453,6 +454,7 @@ def test_schrier_decmposition(gs: List[Permutation]):
 
         # check that this is equal to the result as told by schrier
         assert stab_brute == generate_from_generators(schrier[K])
+        assert len(schrier[K]) <= (N * (N - 1)) // 2 # by sims filter.
 
 
 def main():
