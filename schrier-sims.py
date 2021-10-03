@@ -282,19 +282,21 @@ def stabilizer_coset_representatives_slow(gs: Set[Permutation], k: int, n:int) -
 # However, the weird part is that THAT's NOT ENOUGH.
 # Rather, we need the generators to be: < (gs * os).map(remove_defect) >
 # For whatever reason, we must take all pairs of gs, os!
-def generators_of_stabilizer(gs: List[Permutation], os: Dict[int, Permutation], k: int, n: int):
+def generators_of_stabilizer(gs: List[Permutation], orb2rep: Dict[int, Permutation], k: int, n: int):
     purified = []
     for g in gs:
         # TO THINK: why do we need BOTH gs and os? Why doesn't just gs suffice?
-        for o in os.items():
+        for o in orb2rep:
             h = g * o
             l = h(k) # find coset
-            hdefect = os[l] # find coset representative
+            hdefect = orb2rep[l] # find coset representative
             # g = orep * gstab
             # gstab := g * orep.inverse()
             hstab = h * hdefect.inverse()
             purified.append(hstab)
     return purified
+
+
 
 @composite
 def permutations(draw, n: int):
@@ -376,6 +378,12 @@ def test_stabilizer_coset_reps_slow(ps: List[Permutation], k:int):
 
     assert H == union_of_cosets # check that group is equal to union of cosets of stabilizer.
 
+@given(ps=lists(permutations(n=5), min_size=1, max_size=4), k=integers(0, 4))
+def generators_of_stabilizer(ps: List[Permutation], k:int):
+    N = 5
+    orb2rep = stabilizer_coset_representatives_slow(ps, k, N)
+
+
 def factorial(n: int):
     if n == 0: return 1
     return n * factorial(n-1)
@@ -393,9 +401,14 @@ def test_generators_for_sn(n: int):
     assert len(G) == factorial(n+1) # [0..n]
 
 # compute the schrier decomposition of <as_> = A inside Sn
-def schrier_decomposition(as_: List[Permutation], n: int) -> (List[Permutation], List[Permutation]):
-    Gs = [] # Gs[i]: List[int] = generators for G[i]
-    As = [as_] # As[i] : List[int] = generators for A[i]
+# def schrier_decomposition(gs: List[Permutation], n: int) -> (List[Permutation], List[Permutation]):
+#     Ggens = [gs] # Gss[i]: List[int] = generators of G[i]. so G[0] = < gs > = < Ggens[0] > and so on.
+# 
+#     for k in range(n+1): # [0, n]
+#         gs_prev = Ggens[k]
+#         generators_of_stabilizer(gs_prev, 
+# 
+
 
 def main():
     pass
