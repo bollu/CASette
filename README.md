@@ -1,4 +1,4 @@
-# CASette: minimal Computer Algebra system algorithms
+# CASette: Computer Algebra System algorithms
 
 - Bijective combinatorics: Chapter on Tableaux.
 - [SnoB: FFT for the symmetric group](http://people.cs.uchicago.edu/~risi/SnOB/index.html)
