@@ -436,7 +436,7 @@ def test_schrier_decmposition(gs: List[Permutation]):
     G = set(generate_from_generators(gs))
 
     for K in range(N+1):
-        # compute stabilizer of [1..K] brute force
+        # compute stabilizer of [0..K] brute force
         stab_brute = deepcopy(G)
          # filter out everything in stab_brute that does not stabilize i ∈ [0, K]
         for i in range(0, K+1): 
