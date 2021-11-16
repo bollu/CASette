@@ -289,7 +289,8 @@ def generators_of_stabilizer(gs: List[Permutation], k: int, n: int):
     # Create coset representatives
     orb2rep = stabilizer_coset_representatives_slow(gs, k, n)
 
-    candidates = [g * rep for g in gs for rep in orb2rep.values()]
+    # candidates = [g * rep for g in gs for rep in orb2rep.values()]
+    candidates = gs
 
 
     for h in candidates:

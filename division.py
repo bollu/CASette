@@ -41,13 +41,16 @@ class ExpVec:
 
     @classmethod
     def zero(self):
-        return ExpVec([0, 0, 0])
+        return ExpVec([0 for _ in range(NVARS)])
 
     def is_zero(self):
         return self == ExpVec.zero()
 
-    def __index__(self, ix):
+    def __getitem__(self, ix):
         return self.exp[ix]
+
+    def __setitem__(self, ix, val):
+        self.exp[ix] = val
 
     def __repr__(self):
         out = "("
@@ -62,7 +65,7 @@ class ExpVec:
 
     
 class Mono:
-    def __init__(self, coeff, exp):
+    def __init__(self, coeff: int, exp: ExpVec):
         assert isinstance(coeff, int)
         assert isinstance(exp, ExpVec)
         self.coeff = coeff
