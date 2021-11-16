@@ -104,4 +104,3 @@ int main() {
     cout << "\trecovered polynomial: " << p2.str() << "\n";
     assert(p == p2);
   }
-};
