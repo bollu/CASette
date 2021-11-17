@@ -9,6 +9,8 @@
 - [Bucchberger algorithm](./bucchberger.py) to computing grobner basis of ideal.
 - [Fundamental theorem of symmetric polynomials](./ftsp.cpp) to write a given
   symmetric polynomial in terms of elementary symmetric polynomials.
+- [Plucker coordinates](./plucker.py) implements common graphics operations via plucker coordinates, as a step to
+  understand the grassmanian
 
 #### Aspirational algorithms
 - [Schubert decomposition of the grassmanian](./grassman.py) to compute the cohomology of the grassmanian.
