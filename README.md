@@ -16,6 +16,7 @@
 - [Schubert decomposition of the grassmanian](./grassman.py) to compute the cohomology of the grassmanian.
 - [Algorithms on tableaux](./tableaux.cpp) in particular, implement RSK to show the RSK correspondence, and also implement the fourier transform
   on the symmetric group.
+- [Monster](./monster.py) computing products of elements in the monster group.
 
 #### Books
 - Bijective combinatorics: Chapter on Tableaux.
