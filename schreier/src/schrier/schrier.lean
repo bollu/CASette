@@ -77,16 +77,10 @@ def chain_of_stabs (N: nat) (Ks: fin N → (set (S N))) : Prop :=
   (∀ (i: fin N), interval_stab i N (le_of_lt i.prop) (Ks i)) /\
   (∀ (i: fin N) (j: fin N) (LT: i < j), Ks i ≤ Ks j)
 
-def generators (N: nat) (gs: finset (S N)) (H: subgroup (S N)) : Prop := 
+def generators {N: nat} (gs: finset (S N)) (H: subgroup (S N)) : Prop := 
     closure (coe gs) = H
 
 
--- | records how to reach `k` from `i`.
-def schrier_vector (N: nat)
-  (H: subgroup (S N))
-  (k: fin N)
-  (vec: fin N → option H): Prop
-  := ∀ (i: fin N), ∃ (p: H), some p = vec i → p • i = k 
 
 /-
 # compute how to reach [1..n] rom k ∈ [n] using as
@@ -107,9 +101,18 @@ def schrier_vector(as_: List[Permutation], k: int, n:int) -> List[Permutation]:
                 ainv = a.inverse()
                 if vs[ainv(i)] is None: changed = True; vs[ainv(i)] = ainv
     return vs
+-/
 
 
 
+-- | records how to reach `k` from `i`.
+def schrier_vector (N: nat)
+  (H: subgroup (S N))
+  (k: fin N)
+  (vec: fin N → option H): Prop
+  
+  := ∀ (i: fin N), ∃ (p: H), some p = vec i → p • i = k 
+/-
 # Find smallest index i such that p(i) != i.
 # That is, for all small < i, p(small) = small, and p(i) != i
 def least_nonfixed(p: Permutation, n:int) -> int:
@@ -122,7 +125,14 @@ def least_nonfixed(p: Permutation, n:int) -> int:
         assert p(i) > i 
         return (i, p(i))
     raise RuntimeError("didn't find non-fixed value though not identity")
+-/
 
+def least_nonfixed (N: nat) (p: S N): option (fin N) := 
+    match (fin_range N).drop_while (λ i, p • i = i) with
+    | [] := none 
+    | (x :: xs) := some x
+    end
+/-
 # return as_ to size n(n-1)/2;
 def sims_filter(as_: List[Permutation], n:int):
     table = [[None for j in range(n)] for i in range(n)]
@@ -147,24 +157,14 @@ def sims_filter(as_: List[Permutation], n:int):
             if table[i][j] is None: continue
             s.add(table[i][j])
     return s
+-/
+
+def sims_filter (N: nat) (H: subgroup (S N)) (gs: finset (S N)) (GEN: generators gs H):
+    @psigma (finset (S N) ) (λ gs', generators gs' H) := sorry 
 
 
-# given generators, generate the full group
-def generate_from_generators(ps: List[Permutation]):
-    H = set(); H.add(Permutation.identity())
-    while True:
-        Hnew = set()
-        for h in H:
-            for p in ps:
-                hnew = h * p
-                if hnew in H: continue
-                Hnew.add(hnew);
 
-        if not Hnew: return H
-        else: H = H.union(Hnew)
-    return H
-
-
+/-
 # returns a map of elements in the orbit of k to the permutation that sends them there.
 # see that there are coset representatives by the orbit stabilizer theorem.
 def stabilizer_coset_representatives_slow(gs: Set[Permutation], k: int, n:int) -> Dict[int, Permutation]:
@@ -185,8 +185,13 @@ def stabilizer_coset_representatives_slow(gs: Set[Permutation], k: int, n:int) -
         # no update
         if not new_orb2rep: return orb2rep
         orb2rep.update(new_orb2rep)
+-/
 
-
+-- | map each element o ∈ Orb(k) to a permutation p∈ Sn  such that p(o) = k.
+-- By orbit stabilizer, these p are coset representatives of the stabilizer.
+def stabilizer_coset_representatives (N: nat) (H: subgroup (S N)) (gs: finset (S N))
+    (GEN: generators gs H) (k: nat): (fin N) → option (S N) := sorry
+/-
 # we have a group G = <gs>
 # We have k ∈ S, and we need to find hs ⊂ G such that <hs> = Stab(k).
 # We have partitioned G into cosets of Stab(k) via (o[0] Stab(k), ..., o[n] Stab(k)).
@@ -232,8 +237,13 @@ def generators_of_stabilizer(gs: List[Permutation], k: int, n: int):
             h_k_stab = orep.inverse() * h
             purified.add(h_k_stab)
     return purified
+-/
 
+def generators_of_stabilizer (N: nat) (H: subgroup (S N)) (gs: finset (S N)) (GEN: generators gs H)
+    (k: (fin N)): 
+    @psigma (finset (S N)) (λ ss, generators ss (mul_action.stabilizer (S N)  k)) := sorry
 
+/--/
 def schrier_decomposition(gs: List[Permutation], n: int, use_sims_filter:bool = True) -> Dict[int, Permutation]:
     Ggens = {-1: gs} # Gss[i]: List[int] = generators of G[i]. so G[0] = < gs > = < Ggens[0] > and so on.
     gs_prev = gs
