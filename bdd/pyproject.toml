@@ -6,6 +6,8 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "ruff>=0.7.2",
+    "hypothesis>=6.116.0",
+    "pytest>=8.3.3",
 ]
 
 [build-system]
