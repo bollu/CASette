@@ -1,5 +1,7 @@
+#!/usr/bin/env python3
 # https://bernsteinbear.com/blog/whats-in-an-egraph/
 from __future__ import annotations
+import dataclasses
 from dataclasses import dataclass
 import itertools
 from typing import Optional
@@ -100,11 +102,11 @@ def eg1():
   ]
   print("BEFORE:")
   for op in ops:
-      print(f"v{op.id} =", op.find())
+      print(f"v{op} =", op.find())
   optimize(ops)
   print("AFTER:")
   for op in ops:
-      print(f"v{op.id} =", op.find())
+      print(f"v{op} =", op.find())
 eg1()
   
 
