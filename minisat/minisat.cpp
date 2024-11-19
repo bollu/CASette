@@ -3,6 +3,7 @@
 // Key CDCL loop: Solver->analyze()
 #include "minisat.h"
 #include <algorithm>
+#include <iostream>
 
 using namespace std;
 using var = int;
@@ -251,7 +252,7 @@ var Solver::newVar() {
   assigns.push_back(lbool());
   level.push_back(-1);
   activity.push_back(0);
-  order.newVar();
+  order.newVar(index);
   return index;
 }
 
@@ -265,10 +266,6 @@ bool Solver::addClause(vector<lit> literals) {
     constrs.push_back(out);
     return true;
   }
-}
-
-bool Solver::solve(vector<lit> assumptions) {
-  assert(false && "unimplemented");
 }
 
 // Fig 9:
@@ -599,6 +596,67 @@ bool Solver::simplifyDB() {
     }
   }
   return true;
+}
+
+// Fib 16
+// Main solve method.
+// pre-conditions: if assumptions are used, simplifyDB() must be called.
+bool Solver::solve(std::vector<lit> assumptions) {
+  if (assumptions.size() > 0) {
+    std::cout << "using assumptions. Have you called simplifyDB()?\n";
+  }
+
+  SearchParams params(0.95, 0.999);
+  double nof_conflicts = 100;
+  double nof_learnts = nConstraints()/3;
+  lbool status;
+
+  // push incremental assumptions.
+  for(int i = 0; i < assumptions.size(); ++i) {
+    if (!assume(assumptions[i]) || propagate() != nullptr) {
+      cancelUntil(0);
+      return false;
+    }
+  }
+
+  // set current root level.
+  root_level = decisionLevel();
+  while (status.is_bot()) {
+    status = search(nof_conflicts, nof_learnts, params);
+    nof_conflicts *= 1.5;
+    nof_learnts *= 1.5;
+  }
+  cancelUntil(0);
+  return status == true;
+}
+
+void VarOrder::newVar(var x) {
+  std::push_heap(this->heap.begin(), this->heap.end(), [this](var x, var y) {
+      // need to return if x < y, and the actual impl is a min-heap
+      return (this->activity[x] > this->activity[y]);
+    });
+}
+
+void VarOrder::update(var x) {
+  // bollu(TODO): what is the expected semantics of update/undo? totally opaque to me...
+  this->newVar(x); // bollu(TODO): check if this does the right thing.
+}
+
+
+void VarOrder::updateAll() {
+  std::make_heap(this->heap.begin(), this->heap.end(), [this](var x, var y) {
+      // need to return if x < y, and the actual impl is a min-heap
+      return (this->activity[x] > this->activity[y]);
+    });
+}
+
+void VarOrder::undo(var x) {
+  this->activity[x] = -1;
+}
+
+var VarOrder::select() {
+  assert(heap.size() > 0);
+  return *heap.begin();
 }
 
 int main() {

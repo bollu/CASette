@@ -1,10 +1,17 @@
 // MiniSAT implementation[0]
 // http://minisat.se/downloads/MiniSat.pdf
 // Key CDCL loop: Solver->analyze()
+#pragma once
 #include <vector>
 #include <queue>
 #include <set>
+#include <map>
 #include <assert.h>
+#include <algorithm>
+#include <functional>
+#include <iostream>
+#include <string_view>
+
 
 using var = int;
 
@@ -14,6 +21,8 @@ struct Solver;
 struct SearchParams {
   double cla_decay;
   double var_decay;
+  SearchParams(double cla_decay, double var_decay) : 
+    cla_decay(cla_decay), var_decay(var_decay) {};
 };
 
 struct lit {
@@ -84,13 +93,14 @@ struct Clause : public Constr {
 struct VarOrder {
   VarOrder(std::vector<lbool> &assigns, std::vector<double> &activity) :
     assigns(assigns), activity(activity) {}
-  void newVar() ;
+  void newVar(var x) ;
   void update(var x);
   void updateAll();
   void undo(var x);
   var select();
   std::vector<lbool> &assigns;
   std::vector<double> &activity;
+  std::vector<var> heap;
 };
 
 struct Solver {
