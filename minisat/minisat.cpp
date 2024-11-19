@@ -4,6 +4,7 @@
 #include "minisat.h"
 #include <algorithm>
 #include <iostream>
+#include "dimacs.h"
 
 using namespace std;
 using var = int;
