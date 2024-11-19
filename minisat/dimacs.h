@@ -7,6 +7,17 @@
 #include <sstream>
 #include <iostream>
 
+// From the drat-trim page.
+// <formula>   = { <comment> } "p cnf " <var-max> " " <num-cls> "\n" <cnf>
+// <cnf>       = { <comment> | <clause> }
+// <comment>   = "c " <anything> "\n"
+// <clause>    = { <blank> }{ <lit> } "0"
+// <lit>       = <pos> <blank> | <neg> <blank>
+// <pos>       = "1" | "2" | .... | <max-idx>
+// <neg>       = "-" <pos>
+// <blank>     = " " | "\n" | "\t"
+
+
 namespace dimacs {
   using namespace std;
 
