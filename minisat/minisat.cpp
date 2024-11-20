@@ -300,7 +300,7 @@ bool Clause::propagate(Solver *S, lit p) {
   assert(lits[1] == p.neg());
   // bollu: invariant: lits[0] is the literal we may have to propagate.
   // bollu: lits[0] cannot be false, since we would have been woken up to this.
-  assert(S->value(lits[0] != false);
+  assert(S->value(lits[0]) != false);
 
   // minisat: if 0th watch is true, this clause is SAT.
   if (S->value(lits[0]) == true) {
@@ -587,10 +587,10 @@ lbool Solver::search(int nof_conflicts, int nof_learnts, SearchParams params) {
     if (confl != nullptr) {
       // minisat: CONFLICT
       conflictC++;
-      Vec<lit> learnt_clause;
+      std::vector<lit> learnt_clause;
       int backtrack_level = -1;
       if (decisionLevel() == root_level) {
-        return false;
+        return lbool(false);
       }
       this->analyze(confl, &learnt_clause, &backtrack_level);
       this->cancelUntil(max(backtrack_level, root_level));
