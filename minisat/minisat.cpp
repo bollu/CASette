@@ -1,10 +1,96 @@
 // MiniSAT implementation[0]
 // http://minisat.se/downloads/MiniSat.pdf
-// Key CDCL loop: Solver->analyze()
+// Key CDCL loop: Solver->analyze(), Solver->record()
 #include "minisat.h"
 #include <algorithm>
 #include <iostream>
 #include "dimacs.h"
+
+// Section 3: Overview of SAT solver
+// - Assumptions are then canceled by backtracking **until the conflict clause becomes unit**,
+//   from which point the unit clause is propagated and the search continues.
+//
+// Section 3: Propagation
+// - Two unbound literals p and q of the clause are therefore selected, and references to the clause
+//   are added to !p and !q.
+// - As soon as a watched literal becomes true, the constraint is invoked to see if info can be propagated,
+//   or to select new unbound literals to be watched.
+//
+// - On backtracking, no adjustment to the watcher lists needs to be done.
+//   MiniSAT supports optional undo lists, storing what constraints need to be updated when a variable becomes
+//   unbound by backtracking.
+//
+//
+// Section 3: Learning
+// - The conflicting constraint is asked for a set of variable assignments that make it contradictory.
+//   For a clause, it would be all literals of the clause.
+// - Each of the variable assignments returned must be an assumption of the searc proecedure, or a propagation of some constraint.
+// - The propagating constraints are in turn asked for their variable assignments.
+// - This is done until some termination condition is fulfilled.
+// - A clause prohibiting this assignment is added to the clause DB.
+// - This learnt clause must be implied by the original problem constraints.
+// - Learnt clauses serve two purposes: First, they drive backtracking, and second, they speed up future conflicts by caching the reason
+//   for the conflict.
+//  Section 3: SEarch
+//  - Starts by selecting an unassigned variable x (decision variable) and assume it to be TRUE.
+//  - The consequences are propagated.
+//  - All variables assigned as a consequence of `x` are from the same decision level.
+//  - All assignments are stored on a stack (the trail).
+//  - Trail is divided into decision levels, and is used to undo information for backtracking.
+//  - Decision phase will continue until either all variables are assigned (We have a model),
+//  - ... or we find a cex (in which case we learn a conflict clause).
+//  - We now undo assignments to the conflict clause, until the conflict clause becomes unit.
+//  - If we can remove multiple assignments and have the conflict clause stay unit, then we do so
+//    until we get to the lowest level (backjumping / non-chronological backtracking) [MS96].
+//
+//  Section 3: Cosntraint Removal
+//  - Problem constraints can be removed at the top-level, and simplifyDB does this.
+//  -
+//
+//
+//  4.2 Constraints API
+//
+//  #### Remove
+//  supplant destructor, receiving solver state as a parameter.
+//
+//  #### Proapgate: called if constraint is foud in the watcher list during propgation ofunit info of p.
+//  - Constraint is **removed from** watch list, is required to insert itself into a new or same watcher list.
+//  - Any unit information is derivable as a consequence of p should be enqueued.
+//  - If successful, TRUE is returned.
+//  - If a conflict is detected, FALSE is retuendd.
+//
+//  #### Simplify
+//  - At the top-level, constraint can simplify its representation (return false), or
+//  - state that it is satisfied and can be removed (return true).
+//  - Constraint must *not* be simplifiable to produce unit information, or to be conflicting.
+//    In that case, propagation has not been correctly defined.
+//
+// #### Undo
+//  - During backtracking, called if constraint was added to to the undo list of var(p) in propagate.
+//
+// #### Calculate Reason
+// - Given a literal p and an empty vector.
+// - Constraint is the reason for p being true.
+// - That is, during propagation, we enqueued p.
+// - The received vector is extended to include a set of assignments (represented as literals) implying p.
+// - The currnet variable assignments are guaranteed to be identical to that of the moment before the constraint
+//   propagated p.
+// - The literal p is allowed to be the special bottom_lit, in which case the reason for conflicting should be returned.
+//   (WTF).
+//
+//
+//
+//
+//  Key takeaways
+//  -------------
+//
+//  If we have clause [p, q]
+//    - then we watch !p, !q
+//    - because when !p = T, we will be propagated, soknow that p = F, so we are then unit and we can propagate q.
+//    - Why don't we watch p? unclear!
+//    - Why breadth first search succesfully computes dominators in UIP:
+//      [MSS94] J. P. Marques-Silva and K. A. Sakallah. Dynamic search-space pruning techniques in path sensitization. In
+//
 
 using namespace std;
 using var = int;
@@ -132,7 +218,7 @@ bool Clause::Clause_new(Solver *S, vector<lit> &ps, bool learnt, Clause **out) {
     c->activity = 0; //minisat: only relevant for learnt clauses.
 
     if (learnt) {
-      // pick a second literal to watch.
+      // pick a good second literal to watch, so move sth to lits[1].
       // max_i = index of literal with highest decision level.
       assert(c->lits.size() > 0);
       int max_i = 0; double max_activity = S->activity[c->lits[0].index()];
@@ -152,6 +238,8 @@ bool Clause::Clause_new(Solver *S, vector<lit> &ps, bool learnt, Clause **out) {
         S->varBumpActivity(ps[i].var());
       }
     }
+    // bollu: watch for !p, !q, as explained above.
+    // when p = F, ie, when !p = T, we know that we may have an opportunity to propagate.
     // minisat: add clause to watcher lists.
     S->watches[c->lits[0].neg().index()].push_back(c);
     S->watches[c->lits[1].neg().index()].push_back(c);
@@ -182,8 +270,13 @@ bool Clause::simplify(Solver *S) {
     if (S->value(i).is_true()) {
       return true;
     } else if (S->value(i).is_bot()) {
-      // false literals are not copied. clever.
+      // unassigned literals are coped over.
+      // ergo, false literals are not copied. clever.
       lits[j++] = lits[i];
+    }
+    else {
+      assert(S->value(i).is_false());
+      // ergo, false literals are not copied. clever.
     }
   }
   vectorSetSize(lits, j);
@@ -191,54 +284,80 @@ bool Clause::simplify(Solver *S) {
 }
 
 bool Clause::propagate(Solver *S, lit p) {
-  // bollu: invariant: p is part of the constraint??
+  // bollu: invariant: Clause was on p's watch list, so p contains clause.
 
   // minisat: make sure the false literal is lits[1]
+  //
+  // rearrange the list such that we are woken up by lits[1].
+  // This maintains the invariant below that lits[0] is the unknown literal
+  // whose state we need to determine, now that we have been woken up on lits[1].
   if (lits[0] == p.neg()) {
-    // bollu: if lits[0] takes value F, then switch it to lits[1].
-    // TODO: where is this invariant used?
-    // switch to watching not(p)?
+    // we are now down to a single literal that is being watched,
+    // since we know that lits[0] = F, so we will trigger when lits[1] = T.
     lits[0] = lits[1];
     lits[1] = p.neg();
   }
+  assert(lits[1] == p.neg());
+  // bollu: invariant: lits[0] is the literal we may have to propagate.
+  // bollu: lits[0] cannot be false, since we would have been woken up to this.
+  assert(S->value(lits[0] != false);
 
   // minisat: if 0th watch is true, this clause is SAT.
   if (S->value(lits[0]) == true) {
-    // re-insert clause into watcher list.
+    // bollu:  minisat: re-insert clause into watcher list.
+    // bollu:  we know that lits[0] is true, so we are SAT.
+    // bollu:  We have been removed from the watcher list (as MiniSAT algo always removes clauses from the watchers list,
+    // bollu:  it is their responsilibity to put themselves back),
+    // bollu:  so we put ourselves back on it.
     S->watches[p.index()].push_back(this);
     return true;
   }
+
+  // bollu:  Recall: we were woken up on lits[1].
+  // bollu:  We cannot have lits[0] == false, because we would have been woken up on this.
+  // bollu:  We also established that it is not true, so it must be bot.
+  assert(S->value(lits[0]).is_bot());
 
   // minisat: look for a new literal to watch.
   for(int i = 0; i < lits.size(); ++i) {
     // it is either bottom [unassigned] or true
     if (S->value(lits[i]) != false) {
+      // bollu:  swap with lits[i]
       lits[1] = lits[i];
-      lits[i] = p.neg(); // WTF?
-      S->watches[lits[1].neg().index()].push_back(this); // WTF?
+      lits[i] = p.neg(); // pick the first literal whose value is not false, move it to lits[1].
+      // we choose this literal to watch.
+      S->watches[lits[1].neg().index()].push_back(this);
       return true;
     }
   }
+  // bollu: we could find another literal to watch, which means that all other literals were false!
+  // Thus, clause is unit under assignment, so we propagate.
   // minisat: Clause is unit under assignment
   S->watches[p.index()].push_back(this);
-  // enqueue lits[0] to be propagated.
+  // bollu:  enqueue lits[0] to be propagated.
   return S->enqueue(lits[0], this);
 }
 
 // minisat:
 // invariant: p == bot || p == lits[0]
+// if p = bot, then we must calculate reason for conflict.
+// if p = lits[0] (i.e., we propagated this literal, and we are asked what made it true).
 void Clause::calcReason(Solver *S, lit p, std::vector<lit> *out_reason) {
   assert((p == lit::lbot()) || p == lits[0]);
   assert(out_reason);
   assert(out_reason->size() == 0);
+  // bollu: the reason for conflict is the entire clause.
+  // bollu: the reason for lits[0] being true is that every other lit was false!
   const int start = p == lit::lbot() ? 0 : 1;
   for(int i = start; i < this->lits.size(); ++i) {
-    // invarians: s.value(lits[i]) == false
+    // invariant: s.value(lits[i]) == false
     assert(S->value(lits[i]) == false);
     (*out_reason).push_back(lits[i].neg());
   }
-  if (learnt) {
-    // bollu: bump activity of clause involved in conflict.
+
+  if (this->learnt) {
+    // bollu: bump activity of clause involved in either direct conflict,
+    // or propagation that led to conflict.
     S->claBumpActivity(this);
   }
 }
@@ -324,35 +443,46 @@ bool Solver::enqueue(lit p, Constr *from) {
 //   (1) out_learnt is assumed to be cleared.
 //   (2) current decision level must be greater than root level.
 // bollu: Key CDCL loop here!
+// TODO(bollu): why does this ensure that *out_learnt is a unit clause? AFAICT, after backtracking, it isn't a unit clause at all!
+// TODO(bollu): is it because we effectively only backtrack upto "one decision"?
 void Solver::analyze(Constr *confl, vector<lit> *out_learnt, int *out_btlevel) {
   assert(out_learnt);
   assert(out_learnt->size() == 0);
   assert(decisionLevel() > 0);
 
   vector<bool> seen(nVars(), false);
-  int counter = 0;
-  // bollu TODO: what the heck is bottom lit?
+  // minisat: int counter = 0;
+  int counter_nof_unit_propagations_to_p = 0; // number of unit propagations that led to p being assigned.
+  // bollu:  TODO: what the heck is bottom lit?
+  // bollu:  Recall the API For calcReason(), the bottom literal indicates that we want to analyze the conflict itself.
   lit p = lit::lbot();
-  vector<lit> p_reason;
   out_learnt->push_back(lit::lbot()); // minisat: leave room for asserting literal.
   *out_btlevel = 0;
 
   do {
-    p_reason.clear();
+    vector<lit> p_reason;
     assert(confl != nullptr); // minisat: invariant that confl != null.
+    // bollu: calculate reason for conflict. Start by calculating how we got conflict, then implicants for conflict.
     confl->calcReason(this, p, &p_reason);
 
     // minisat: trace reason for p
-    for(int j = 0; j < p_reason.size(); ++j) {
-      lit q = p_reason[j];
+    for(lit q : p_reason) {
       if (!seen[q.var()]) {
-        seen[q.var()] = true;
+        seen[q.var()] = true; // bollu: BFS.
         // bollu: this is from current decision level
         if (level[q.var()] == decisionLevel()) {
-          counter++;
+          // the assignment of `q` came from the same decision level as `p`, so it came from unit proagations!
+          // We can definitely undo this variable.
+          counter_nof_unit_propagations_to_p++;
         }
         else if (level[q.var()] > 0) {
+          // bollu: this is from a previos decision level, so add it in.
+          // But do not add stuff from the current decision level -_^
+
           // minisat: exclude variables from decision level 0.
+          // we know that (q0 /\ q1 /\... qn) led to False.
+          // We negate this clause, and add it as a conflict clause that we learn,
+          // which gives us (!q0 \/ !q1 \/ !q2 ... \/ !qn), so we negate the qs.
           out_learnt->push_back(q.neg());
           *out_btlevel = std::max<int>(*out_btlevel, level[q.var()]);
         }
@@ -366,10 +496,15 @@ void Solver::analyze(Constr *confl, vector<lit> *out_learnt, int *out_btlevel) {
       confl = reason[p.var()];
       undoOne();
     } while(!seen[p.var()]);
-    counter--;
-  } while (counter > 0);
+    counter_nof_unit_propagations_to_p--;
+  } while (counter_nof_unit_propagations_to_p > 0); // backtrack all the unit propagations that led to p.
 
+  // bollu: we add a clause whose lits[0] is from the out_btlevel.
+  assert(level[p.var()] == *out_btlevel);
+  // TODO(bollu): why is this a unit clause? that's pretty unclear to me!
   // TODO(bollu): does this really work?
+  // hurray, we found a *decision* that led to p!
+  // We negate this decision, since this clause will
   (*out_learnt)[0] = p.neg();
 }
 
@@ -380,6 +515,7 @@ void Solver::record(vector<lit> clause) {
   assert(clause.size() > 0);
   Clause *c = nullptr; // minisat: will be set to created clause, or nullptr if c is unit.
   Clause::Clause_new(this, clause, true, &c);
+  // bollu(TODO): do we know that clause[1]...clause[n] are false? I really don't see why this is the case!
   enqueue(clause[0], c);
   if (c != nullptr) {
     learnts.push_back(c);
@@ -449,6 +585,18 @@ lbool Solver::search(int nof_conflicts, int nof_learnts, SearchParams params) {
   while (true) {
     Constr *confl = this->propagate();
     if (confl != nullptr) {
+      // minisat: CONFLICT
+      conflictC++;
+      Vec<lit> learnt_clause;
+      int backtrack_level = -1;
+      if (decisionLevel() == root_level) {
+        return false;
+      }
+      this->analyze(confl, &learnt_clause, &backtrack_level);
+      this->cancelUntil(max(backtrack_level, root_level));
+      this->record(learnt_clause); // bollu: this enqueues learnt_clause[0], which it assumes to be unit! why?
+      decayActivities();
+
     } else {
       // minisat: no conflict
       if (decisionLevel() == 0) {
