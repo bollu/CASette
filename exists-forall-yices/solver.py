@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 from z3 import *
 
-x = Int('x')
-y = Int('y')
-solve(x > 2, y < 10, x + 2*y == 7)
+# x = Int('x')
+# y = Int('y')
+# solve(x > 2, y < 10, x + 2*y == 7)
 
 # Section 2: SMT based EF solving.
 # ∃ x, A y, phi(x, y)
@@ -102,11 +102,34 @@ def g_solver_model_guided(xs, ys, F, M):
     # https://publikationen.sulb.uni-saarland.de/bitstream/20.500.11880/26735/1/mkosta_dissertation.pdf
     # Q. How to do virtual term substitution for BV theory? has this even been studied? 
     #   Does Reghr think this is even necessary?
+    pass
 
 def g_solver_model_guided(xs, ys, ai, phi, bi):
     # Model guided generalization, can be seen as a form of QE, where we are eliminating
     # ∀y, in a way that is guided by the counter-example model (ai, bi).
     # Not that for us, in the case of bitvectors, we will need to guide the model differently / carefully.
+    pass
 
+def solve(xs, ys, phi):
+    def e_solver (xs, cs):
+        # find a model for the formula phi(xs, ys) and cs.
+        s = Solver()
+        s.add(cs)
+        if s.check() == sat:
+            m = s.model()
+            return [m[x] for x in xs]
+        else:
+            return None
+
+    def f_solver(xs, ys, ai, phi):
+        # find a model for the formula phi(ai, ys).
+        s = Solver()
+        s.add(substitute(phi, ai))
+        if s.check() == sat:
+            m = s.model()
+            return [m[y] for y in ys]
+        else:
+            return None
+    return ef_solver(xs, ys, phi, e_solver, f_solver, g_solver_subst)
 
 
