@@ -9,7 +9,7 @@ enum ExprKind {
   LeftShift,
 }
 struct Expr {
-  Expr *unite;
+  Expr *unite; // every expression has a pointer to its "unique representative". (Union-find)
   ExprKind kind;
 
   Expr(ExprKind kind) {
@@ -105,6 +105,7 @@ void optimize2(Expr *e, CanonCtx *ctx) {
   }
 }
 
+// (?a + 0) -> ?a
 // subtitution map.
 struct Matcher;
 struct Subst {
@@ -131,6 +132,7 @@ struct Subst {
   }
 }
 
+// "Term index"
 struct Matcher {
   // match an expression, updating the substitution map,
   // and returning 'false' if no substitution was possible.
