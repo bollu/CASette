@@ -118,10 +118,21 @@ Problem problem_add_id(Config config, context &c) {
   Problem ret(c);
   expr x = c.bv_const("x", config.w);
   expr cst = c.bv_const("cst", config.w);
-  // exists cst, forall w, x + cst = x
+  // exists cst, forall x, x + cst = x
   ret.exists_vars.push_back(cst);
   ret.forall_vars.push_back(x);
   ret.phi = x + cst == x; 
+  return ret;
+}
+
+Problem problem_add_infeasible(Config config, context &c) {
+  Problem ret(c);
+  expr x = c.bv_const("x", config.w);
+  expr cst = c.bv_const("cst", config.w);
+  ret.exists_vars.push_back(cst);
+  ret.forall_vars.push_back(x);
+  // exists cst, forall x, x = cst
+  ret.phi = x == cst;
   return ret;
 }
 
@@ -130,10 +141,10 @@ Problem problem_left_shift_right_shift(Config config, context &ctx) {
   Problem ret(ctx);
   expr x = ctx.bv_const("x", config.w);
   expr cst = ctx.bv_const("cst", config.w);
-  // exists cst, forall w, x + cst = x
   ret.exists_vars.push_back(cst);
   ret.forall_vars.push_back(x);
   expr c1 = ctx.bv_val(1, config.w);
+  // ∃ cst, ∀ x, (x << 1) >> 1 = cst
   ret.phi = z3::lshr(z3::shl(x, c1), c1) == (x & cst);
   return ret;
 }
@@ -144,6 +155,7 @@ int main() {
   std::vector<Problem> ps = { 
     problem_add_id(config, ctx),
     problem_left_shift_right_shift(config, ctx),
+    problem_add_infeasible(config, ctx),
   };
   for (Problem p : ps) {
     exists_forall_solver(config, ctx, p);
